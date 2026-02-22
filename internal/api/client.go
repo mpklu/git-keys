@@ -77,3 +77,21 @@ func (tm *TokenManager) SetToken(account, token string) error {
 	logger.Info("Token stored for account: %s", account)
 	return nil
 }
+
+// DeleteToken removes the API token from keychain
+func (tm *TokenManager) DeleteToken(account string) error {
+	logger.Debug("Deleting token for account: %s", account)
+
+	cmd := exec.Command("security", "delete-generic-password",
+		"-s", tm.keychainService,
+		"-a", account)
+
+	if err := cmd.Run(); err != nil {
+		// Token might not exist, which is fine
+		logger.Debug("Token deletion failed (may not exist): %v", err)
+		return nil
+	}
+
+	logger.Info("Token deleted for account: %s", account)
+	return nil
+}

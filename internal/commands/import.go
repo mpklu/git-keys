@@ -18,7 +18,6 @@ import (
 var (
 	importInteractive bool
 	importDryRun      bool
-	importAuto        bool
 )
 
 // KeyImport represents a key to be imported
@@ -53,15 +52,10 @@ All changes are backed up and reversible.`,
 func init() {
 	importCmd.Flags().BoolVar(&importInteractive, "interactive", true, "Interactive wizard mode")
 	importCmd.Flags().BoolVar(&importDryRun, "dry-run", false, "Show what would be imported without making changes")
-	importCmd.Flags().BoolVar(&importAuto, "auto", false, "Attempt automatic mapping based on SSH config")
 	rootCmd.AddCommand(importCmd)
 }
 
 func runImport(cmd *cobra.Command, args []string) error {
-	if importAuto {
-		return fmt.Errorf("--auto mode not yet implemented")
-	}
-
 	logger.Info("Starting import wizard...")
 	fmt.Println()
 

@@ -60,10 +60,18 @@ type GitConfig struct {
 }
 
 type GitInclude struct {
-	Path      string
-	Condition string
-	Name      string
-	Email     string
+	Path                string               `json:"path"`
+	Condition           string               `json:"condition"`
+	Name                string               `json:"name"`
+	Email               string               `json:"email"`
+	DiscoveredPlatforms []DiscoveredPlatform `json:"discovered_platforms,omitempty"`
+}
+
+type DiscoveredPlatform struct {
+	Type      string   `json:"type"`               // "github" or "gitlab"
+	BaseURL   string   `json:"base_url,omitempty"` // For self-hosted GitLab
+	RepoCount int      `json:"repo_count"`         // Number of repos found for this platform
+	Groups    []string `json:"groups,omitempty"`   // Group/namespace names (for reference, not auth)
 }
 
 var scanCmd = &cobra.Command{
@@ -414,15 +422,186 @@ func scanGitConfig() (GitConfig, error) {
 			}
 
 			gitConf.Includes = append(gitConf.Includes, GitInclude{
-				Path:      path,
-				Condition: gitdir,
-				Name:      name,
-				Email:     email,
+				Path:                path,
+				Condition:           gitdir,
+				Name:                name,
+				Email:               email,
+				DiscoveredPlatforms: discoverPlatformsInDirectory(gitdir),
 			})
 		}
 	}
 
 	return gitConf, nil
+}
+
+// discoverPlatformsInDirectory scans git repos in a directory to discover platforms
+func discoverPlatformsInDirectory(gitdir string) []DiscoveredPlatform {
+	// Expand path
+	homeDir := os.Getenv("HOME")
+	if strings.HasPrefix(gitdir, "~") {
+		gitdir = strings.Replace(gitdir, "~", homeDir, 1)
+	}
+	// Remove trailing slash and gitdir: prefix
+	gitdir = strings.TrimSuffix(gitdir, "/")
+	gitdir = strings.TrimPrefix(gitdir, "gitdir:")
+
+	// Check if directory exists
+	if _, err := os.Stat(gitdir); os.IsNotExist(err) {
+		return nil
+	}
+
+	platformMap := make(map[string]*DiscoveredPlatform) // key: "platform:account:baseurl"
+
+	// Walk subdirectories (max 2 levels deep)
+	err := filepath.Walk(gitdir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || !info.IsDir() {
+			return err
+		}
+
+		// Skip if we're too deep
+		relPath, _ := filepath.Rel(gitdir, path)
+		depth := len(strings.Split(relPath, string(os.PathSeparator)))
+		if depth > 2 {
+			return filepath.SkipDir
+		}
+
+		// Check if this is a git repo
+		gitConfigPath := filepath.Join(path, ".git", "config")
+		if _, err := os.Stat(gitConfigPath); os.IsNotExist(err) {
+			return nil
+		}
+
+		// Read git config
+		data, err := os.ReadFile(gitConfigPath)
+		if err != nil {
+			return nil
+		}
+
+		// Parse remote URLs
+		remotePattern := regexp.MustCompile(`\[remote\s+"[^"]*"\]\s+url\s*=\s*(.+)`)
+		matches := remotePattern.FindAllStringSubmatch(string(data), -1)
+
+		for _, match := range matches {
+			if len(match) < 2 {
+				continue
+			}
+
+			url := strings.TrimSpace(match[1])
+			platformType, baseURL, group := parseGitRemoteURL(url)
+			if platformType == "" {
+				continue
+			}
+
+			// Create key for deduplication by platform type and base URL only
+			key := fmt.Sprintf("%s:%s", platformType, baseURL)
+			if existing, exists := platformMap[key]; exists {
+				existing.RepoCount++
+				// Add group if not already present
+				if group != "" && !contains(existing.Groups, group) {
+					existing.Groups = append(existing.Groups, group)
+				}
+			} else {
+				platform := &DiscoveredPlatform{
+					Type:      platformType,
+					BaseURL:   baseURL,
+					RepoCount: 1,
+					Groups:    []string{},
+				}
+				if group != "" {
+					platform.Groups = append(platform.Groups, group)
+				}
+				platformMap[key] = platform
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		logger.Debug("Error walking directory %s: %v", gitdir, err)
+	}
+
+	// Convert map to slice
+	var platforms []DiscoveredPlatform
+	for _, p := range platformMap {
+		platforms = append(platforms, *p)
+	}
+
+	return platforms
+}
+
+// contains checks if a string is in a slice
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+// parseGitRemoteURL extracts platform info from a git remote URL
+// Returns: platformType, baseURL, group/namespace
+func parseGitRemoteURL(url string) (string, string, string) {
+	url = strings.TrimSpace(url)
+
+	var hostname, group string
+
+	// Handle SSH URLs: git@github.com:username/repo.git or git@gitlab.com:group/repo.git
+	if strings.HasPrefix(url, "git@") || strings.HasPrefix(url, "ssh://") {
+		// Remove protocol
+		url = strings.TrimPrefix(url, "ssh://")
+		url = strings.TrimPrefix(url, "git@")
+
+		// Split on : or /
+		if strings.Contains(url, ":") {
+			parts := strings.Split(url, ":")
+			if len(parts) >= 2 {
+				hostname = parts[0]
+				// Parse group/namespace from path: group/repo.git
+				pathParts := strings.Split(parts[1], "/")
+				if len(pathParts) >= 1 {
+					group = pathParts[0]
+				}
+			}
+		}
+	} else if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+		// Handle HTTPS URLs: https://github.com/username/repo.git
+		url = strings.TrimPrefix(url, "https://")
+		url = strings.TrimPrefix(url, "http://")
+
+		parts := strings.Split(url, "/")
+		if len(parts) >= 2 {
+			hostname = parts[0]
+			group = parts[1]
+		}
+	} else {
+		return "", "", ""
+	}
+
+	if hostname == "" {
+		return "", "", ""
+	}
+
+	// Determine platform type and base URL
+	var platformType, baseURL string
+
+	if strings.Contains(hostname, "github.com") {
+		platformType = "github"
+		baseURL = "" // Empty for github.com
+	} else if strings.Contains(hostname, "gitlab") {
+		platformType = "gitlab"
+		if hostname != "gitlab.com" {
+			baseURL = "https://" + hostname
+		} else {
+			baseURL = "" // Empty for gitlab.com
+		}
+	} else {
+		// Unknown platform, skip
+		return "", "", ""
+	}
+
+	return platformType, baseURL, group
 }
 
 func checkRemotePlatforms(result *ScanResult) error {

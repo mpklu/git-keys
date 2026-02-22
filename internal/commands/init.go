@@ -88,7 +88,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 	})
 
 	// Interactive setup
-	fmt.Println("\n=== Git-Keys Setup ===\n")
+	fmt.Println("\n=== Git-Keys Setup ===")
+	fmt.Println()
 
 	// Ask if user wants to add a persona now
 	reader := bufio.NewReader(os.Stdin)

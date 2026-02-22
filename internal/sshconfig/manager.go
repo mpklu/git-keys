@@ -168,3 +168,57 @@ func (m *Manager) BackupConfig() (string, error) {
 	logger.Info("Created SSH config backup: %s", backupPath)
 	return backupPath, nil
 }
+
+// RemoveAllManagedBlocks removes all git-keys managed blocks from SSH config
+func (m *Manager) RemoveAllManagedBlocks() error {
+	content, err := os.ReadFile(m.configPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // No config file, nothing to clean
+		}
+		return fmt.Errorf("failed to read SSH config: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	var result []string
+	inManagedBlock := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Check if entering a managed block
+		if strings.HasPrefix(trimmed, managedBlockStart) {
+			inManagedBlock = true
+			continue
+		}
+
+		// Check if exiting a managed block
+		if inManagedBlock && strings.HasPrefix(trimmed, managedBlockEnd) {
+			inManagedBlock = false
+			continue
+		}
+
+		// Only keep lines that are not in a managed block
+		if !inManagedBlock {
+			result = append(result, line)
+		}
+	}
+
+	// Remove trailing empty lines
+	for len(result) > 0 && strings.TrimSpace(result[len(result)-1]) == "" {
+		result = result[:len(result)-1]
+	}
+
+	// Write cleaned config back
+	newContent := strings.Join(result, "\n")
+	if len(result) > 0 {
+		newContent += "\n" // Ensure file ends with newline
+	}
+
+	if err := os.WriteFile(m.configPath, []byte(newContent), 0600); err != nil {
+		return fmt.Errorf("failed to write SSH config: %w", err)
+	}
+
+	logger.Info("Removed all git-keys managed blocks from SSH config")
+	return nil
+}

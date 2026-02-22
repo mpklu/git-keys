@@ -33,6 +33,7 @@ type Platform struct {
 	Type    PlatformType `yaml:"type"`               // "github" or "gitlab"
 	Account string       `yaml:"account"`            // Username or organization
 	BaseURL string       `yaml:"base_url,omitempty"` // For self-hosted GitLab
+	GitDir  string       `yaml:"gitdir,omitempty"`   // Directory pattern for git config includeIf
 	Keys    []KeyConfig  `yaml:"keys,omitempty"`     // Managed keys
 }
 
