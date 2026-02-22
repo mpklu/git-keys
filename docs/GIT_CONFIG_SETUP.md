@@ -53,9 +53,9 @@ Example configurations:
 	email = kal@company.com
 
 # SSH host rewrite for platform-specific key
-[url "git@gitlab.macpractice.net.KunLu:"]
-	insteadOf = git@gitlab.macpractice.net:
-	insteadOf = https://gitlab.macpractice.net/
+[url "git@gitlab.domain.net.KunLu:"]
+	insteadOf = git@gitlab.domain.net:
+	insteadOf = https://gitlab.domain.net/
 ```
 
 ### 2. Conditional Includes Added to ~/.gitconfig
@@ -105,7 +105,7 @@ When you work in `/Users/username/Projects/mpklu/`:
 
 When you work in `/Users/username/Projects/mp/`:
 - Git uses identity: `Kun Lu <kal@company.com>`
-- Clones automatically use: `git@gitlab.macpractice.net.KunLu:` (kal's SSH key on GitLab)
+- Clones automatically use: `git@gitlab.domain.net.KunLu:` (kal's SSH key on GitLab)
 - Commits are signed with Kun Lu identity for work
 
 ### URL Rewriting
@@ -126,8 +126,8 @@ git clone git@github.com:user/repo.git
 # Becomes: git@github.com.KunLu:user/repo.git
 
 # In ~/Projects/mp/
-git clone git@gitlab.macpractice.net:team/project.git
-# Becomes: git@gitlab.macpractice.net.KunLu:team/project.git
+git clone git@gitlab.domain.net:team/project.git
+# Becomes: git@gitlab.domain.net.KunLu:team/project.git
 ```
 
 This ensures you always use the correct SSH key for each repository.
@@ -172,8 +172,8 @@ git config --get-urlmatch url.insteadof git@github.com:user/repo.git
 # Returns: git@github.com.KunLu:
 
 cd ~/Projects/mp/
-git config --get-urlmatch url.insteadof git@gitlab.macpractice.net:team/project.git
-# Returns: git@gitlab.macpractice.net.KunLu:
+git config --get-urlmatch url.insteadof git@gitlab.domain.net:team/project.git
+# Returns: git@gitlab.domain.net.KunLu:
 ```
 
 ## Updating Configuration

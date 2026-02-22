@@ -24,8 +24,8 @@ Host github.com.gelileo
 
 
 # BEGIN git-keys managed block - Kun Lu-gitlab-kal
-Host gitlab.macpractice.net.KunLu
-  HostName gitlab.macpractice.net
+Host gitlab.domain.net.KunLu
+  HostName gitlab.domain.net
   User git
   IdentityFile ~/.ssh/git-keys-gitlab-kal-ed25519
   IdentitiesOnly yes
@@ -48,7 +48,7 @@ Host github.com.KunLu
 Each persona-platform combination gets a unique SSH host alias:
 - `github.com.gelileo` → Routes to GitHub using gelileo's key
 - `github.com.KunLu` → Routes to GitHub using mpklu's key
-- `gitlab.macpractice.net.KunLu` → Routes to GitLab using kal's key
+- `gitlab.domain.net.KunLu` → Routes to GitLab using kal's key
 
 ### Hostname Sanitization
 
@@ -96,9 +96,9 @@ git clone git@github.com:user/repo.git
 # Uses key: ~/.ssh/git-keys-github-mpklu-ed25519
 
 # In directory configured for kal
-git clone git@gitlab.macpractice.net:team/project.git
-# Git rewrites to: git@gitlab.macpractice.net.KunLu:team/project.git
-# SSH matches: Host gitlab.macpractice.net.KunLu
+git clone git@gitlab.domain.net:team/project.git
+# Git rewrites to: git@gitlab.domain.net.KunLu:team/project.git
+# SSH matches: Host gitlab.domain.net.KunLu
 # Uses key: ~/.ssh/git-keys-gitlab-kal-ed25519
 ```
 
@@ -145,7 +145,7 @@ ssh -T git@github.com.KunLu
 # Expected: Hi mpklu! You've successfully authenticated, but GitHub does not provide shell access.
 
 # Test kal GitLab connection
-ssh -T git@gitlab.macpractice.net.KunLu
+ssh -T git@gitlab.domain.net.KunLu
 # Expected: Welcome to GitLab, @kal!
 ```
 
@@ -241,8 +241,8 @@ Host github.com.KunLu
 
 ```ssh-config
 # BEGIN git-keys managed block - Kun Lu-gitlab-kal
-Host gitlab.macpractice.net.KunLu
-  HostName gitlab.macpractice.net
+Host gitlab.domain.net.KunLu
+  HostName gitlab.domain.net
   User git
   IdentityFile ~/.ssh/git-keys-gitlab-kal-ed25519
   IdentitiesOnly yes
@@ -262,8 +262,8 @@ Host github.com.KunLu
 # END git-keys managed block
 
 # BEGIN git-keys managed block - Kun Lu-gitlab-kal
-Host gitlab.macpractice.net.KunLu
-  HostName gitlab.macpractice.net
+Host gitlab.domain.net.KunLu
+  HostName gitlab.domain.net
   User git
   IdentityFile ~/.ssh/git-keys-gitlab-kal-ed25519
   IdentitiesOnly yes
@@ -312,7 +312,7 @@ git-keys keychain add --all
 # Or manually test each
 ssh -T git@github.com.gelileo
 ssh -T git@github.com.KunLu
-ssh -T git@gitlab.macpractice.net.KunLu
+ssh -T git@gitlab.domain.net.KunLu
 ```
 
 ## Troubleshooting
